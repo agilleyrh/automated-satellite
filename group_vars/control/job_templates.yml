@@ -1074,7 +1074,7 @@ controller_templates:
             - RHEL8_to_RHEL9
           required: true
 
-  - name: Z / CaC / Controller / RIPU scenario
+  - name: Z / CaC / Controller / C2R - RIPU scenario
     project: Automated Management
     playbook: setup_controller_via_varsfiles.yml
     inventory: Workshop Inventory
