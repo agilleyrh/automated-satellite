@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    login: &login
+      server_url: "{{ lookup('env', 'SATELLITE_SERVER_URL') }}"
+      username: "{{ lookup('env', 'SATELLITE_USERNAME') }}"
+      password: "{{ lookup('env', 'SATELLITE_PASSWORD') }}"
+      validate_certs: "{{ lookup('env', 'SATELLITE_VALIDATE_CERTS') }}"
+
+  tasks:
+    - name: List organization info
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: organizations
+      register: organizations_resource_info_result
+
+    - name: List location info
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: locations
+      register: locations_resource_info_result
+
+    - name: List capsule info
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: capsules
+      register: capsules_resource_info_result
+
+    - ansible.builtin.debug:
+        var: resource_info_results
+      vars:
+        resource_info_results:
+          organizations: "{{ organizations_resource_info_result }}"
+          locations: "{{ locations_resource_info_result }}"
+          capsules: "{{ capsules_resource_info_result }}"
+
+    - name: List organization id
+      ansible.builtin.debug:
+        msg: "{{ organizations_resource_info_result.resources | selectattr('name', 'search', organization) | map(attribute='id') }}"
+
+    - name: List location id
+      ansible.builtin.debug:
+        msg: "{{ locations_resource_info_result.resources | selectattr('name', 'search', location) | map(attribute='id') }}"
+
+    - name: List capsule name
+      ansible.builtin.debug:
+        msg: "{{ capsules_resource_info_result.resources | selectattr('name', 'search', '^satellite') | map(attribute='name') }}"
+
+    - name: List capsule id
+      ansible.builtin.debug:
+        msg: "{{ capsules_resource_info_result.resources | selectattr('name', 'search', '^satellite') | map(attribute='id') }}"
+...

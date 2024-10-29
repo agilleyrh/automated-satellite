@@ -35,6 +35,78 @@ controller_templates:
             - Prod
           required: true
 
+  - name: SERVER / RHEL7 - Register via Satellite API
+    project: Automated Management
+    playbook: server_register_via_api.yml
+    inventory: Workshop Inventory
+    credentials:
+      - Workshop Credential
+      - Satellite Credential
+    limit: localhost,rhel7
+    extra_vars:
+      el_distribution: RHEL7
+      organization: "Default Organization"
+      location: "Default Location"
+      rhsm_enabled_repos:
+        - rhel-7-server-rpms
+        - rhel-7-server-extras-rpms
+        - rhel-7-server-satellite-client-6-rpms
+      include_offset_task_delay: true
+    notification_templates_started: Telemetry
+    notification_templates_success: Telemetry
+    notification_templates_error: Telemetry
+    survey_enabled: true
+    survey:
+      name: ''
+      description: ''
+      spec:
+        - question_name: Server Name or Pattern
+          type: text
+          variable: PREFIX
+          required: false
+        - question_name: Choose Environment
+          type: multiplechoice
+          variable: env
+          choices:
+            - Dev
+            - QA
+            - Prod
+          required: true
+
+  - name: SERVER / CentOS7 - Register via Satellite API
+    project: Automated Management
+    playbook: server_register_via_api.yml
+    inventory: Workshop Inventory
+    credentials:
+      - Workshop Credential
+      - Satellite Credential
+    limit: localhost,centos7
+    extra_vars:
+      el_distribution: CentOS7
+      organization: "Default Organization"
+      location: "Default Location"
+      include_offset_task_delay: true
+    notification_templates_started: Telemetry
+    notification_templates_success: Telemetry
+    notification_templates_error: Telemetry
+    survey_enabled: true
+    survey:
+      name: ''
+      description: ''
+      spec:
+        - question_name: Server Name or Pattern
+          type: text
+          variable: PREFIX
+          required: false
+        - question_name: Choose Environment
+          type: multiplechoice
+          variable: env
+          choices:
+            - Dev
+            - QA
+            - Prod
+          required: true
+
   - name: SERVER / CentOS7 - Register
     project: Automated Management
     playbook: server_register.yml
@@ -223,11 +295,16 @@ controller_templates:
           type: multiplechoice
           variable: resource_info_survey
           choices:
+            - organizations
+            - locations
+            - subscriptions
+            - capsules
             - hosts
             - content_views
             - lifecycle_environments
             - activation_keys
             - repositories
+            - list_all_options
           required: true
 
   - name: SATELLITE / Performance Tuning
@@ -531,14 +608,18 @@ controller_templates:
       description: ''
       spec:
         - question_name: Select EL Group to analyze
+          question_description: Use to limit job to hosts that are members of the selected host group.
           variable: dynamic_inventory_group
+          default: ''
           type: multiplechoice
           choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^CentOS.*$') | map(attribute='name') | list + hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^OL.*$') | map(attribute='name') | list }}"
           required: true
         - question_name: Select RHEL Lifecycle Environment to use for analysis
+          question_description: Select RHEL Lifecycle Environment to use during ConvertRHEL pre-conversion analysis.
           variable: rhel_lifecycle_environment
+          default: ''
           type: multiplechoice
-          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^RHEL.*$') | map(attribute='name') | list}}"
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^RHEL.*$') | map(attribute='name') | list + hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^CentOS7_to_RHEL7.*$') | map(attribute='name') | list }}"
           required: true
     ask_limit_on_launch: true
 
@@ -562,14 +643,18 @@ controller_templates:
       description: ''
       spec:
         - question_name: Select EL Group to convert
+          question_description: Use to limit job to selected inventory host group.
           variable: dynamic_inventory_group
           type: multiplechoice
+          default: ''
           choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^CentOS.*$') | map(attribute='name') | list + hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^OL.*$') | map(attribute='name') | list }}"
           required: true
         - question_name: Select target RHEL Lifecycle Environment to convert to
+          question_description: Specify RHEL Lifecycle Environment for conversion RPM package sources.
           variable: rhel_lifecycle_environment
           type: multiplechoice
-          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^RHEL.*$') | map(attribute='name') | list}}"
+          default: ''
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^RHEL.*$') | map(attribute='name') | list + hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^CentOS7_to_RHEL7.*$') | map(attribute='name') | list }}"
           required: true
     ask_variables_on_launch: true
     ask_limit_on_launch: true
@@ -1007,12 +1092,15 @@ controller_templates:
       name: ''
       description: ''
       spec:
-        - question_name: Choose RIPU version to prepare on Controller
+        - question_name: Choose C2R/RIPU version to prepare on Controller
+          question_description: Select Convert2RHEL, RHEL8, or RHEL9 CaC scenario
           type: multiplechoice
           variable: controller_cac_scenario
           choices:
+            - CentOS7_C2R
             - RHEL8
             - RHEL9
+          default: ''
           required: true
 
   - name: UTILITY / Extend partition and resize physical volume
@@ -1149,6 +1237,102 @@ controller_templates:
     notification_templates_started: Telemetry
     notification_templates_success: Telemetry
     notification_templates_error: Telemetry
+
+  - name: SATELLITE / Query for content host configuration details
+    project: Automated Management
+    playbook: query_satellite_resource_info_hosts_display_content_details.yml
+    inventory: EC2 Dynamic Inventory
+    credentials:
+      - Satellite Credential
+      - Workshop Credential
+    extra_vars:
+      org_name: "{{ hostvars['satellite.example.com']['satellite_organization'] }}"
+    notification_templates_started: Telemetry
+    notification_templates_success: Telemetry
+    notification_templates_error: Telemetry
+    survey_enabled: true
+    survey:
+      name: ''
+      description: ''
+      spec:
+        - question_name: Select inventory group
+          question_description: Use to limit job to selected inventory host group.
+          type: multiplechoice
+          default: ''
+          variable: dynamic_inventory_group
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '.*') | map(attribute='name') | list }}"
+          required: true
+        - question_name: Enter list of specific content hosts to limit to delimited by commas
+          question_description: Use to limit job to specified content hosts that are members of inventory host group, leave blank for no limit.
+          type: text
+          default: ''
+          variable: inventory_host_limit
+          required: false
+    ask_limit_on_launch: false
+
+  - name: SATELLITE / Change content source for content host
+    project: Automated Management
+    playbook: satellite_node_change_content_source.yml
+    inventory: EC2 Dynamic Inventory
+    credentials:
+      - Satellite Credential
+      - Workshop Credential
+    extra_vars:
+      org_name: "{{ hostvars['satellite.example.com']['satellite_organization'] }}"
+    notification_templates_started: Telemetry
+    notification_templates_success: Telemetry
+    notification_templates_error: Telemetry
+    survey_enabled: true
+    survey:
+      name: ''
+      description: ''
+      spec:
+        - question_name: Select inventory group
+          question_description: Use to limit job to selected inventory host group.
+          type: multiplechoice
+          default: ''
+          variable: dynamic_inventory_group
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '.*') | map(attribute='name') | list }}"
+          required: true
+        - question_name: Enter list of specific content hosts to limit to delimited by commas
+          question_description: Use to limit job to specified content hosts that are members of inventory host group, leave blank for no limit.
+          type: text
+          default: ''
+          variable: inventory_host_limit
+          required: false
+        - question_name: Select target lifecycle environment for content host
+          question_description: Lifecycle environment for content host to be changed to.
+          type: multiplechoice
+          default: ''
+          variable: target_lifecycle_environment
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '.*') | map(attribute='name') | list }}"
+          required: true
+    ask_limit_on_launch: false
+
+  - name: SERVER / Update content host system facts on Satellite
+    project: Automated Management
+    playbook: subman_facts_update.yml
+    inventory: EC2 Dynamic Inventory
+    credentials:
+      - Workshop Credential
+    ask_variables_on_launch: false
+    notification_templates_started: Telemetry
+    notification_templates_success: Telemetry
+    notification_templates_error: Telemetry
+    survey_enabled: true
+    survey:
+      name: ''
+      description: ''
+      spec:
+        - question_name: Select inventory group
+          type: multiplechoice
+          variable: dynamic_inventory_group
+          choices: "{{ hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^RHEL.*$') | map(attribute='name') +
+                       hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^CentOS.*$') | map(attribute='name') +
+                       hostvars['satellite.example.com']['satellite_lifecycle_environments'] | selectattr('name', 'match', '^OL.*$') | map(attribute='name') +
+                       hostvars['satellite.example.com']['all_lifecycle_environments'] | selectattr('name', 'match', 'all') | map(attribute='name') }}"
+          required: true
+    ask_limit_on_launch: true
 
   - name: Demo Job Template
     state: absent
