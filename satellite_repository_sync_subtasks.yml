@@ -16,6 +16,10 @@
   #  loop_control:
   #    loop_var: content_view
 
+  - name: Execute redhat.satellite.repositories role
+    ansible.builtin.import_role:
+      name: "redhat.satellite.repositories"
+
   - name: Loop on repositories to sync
     ansible.builtin.include_tasks: 'satellite_repository_sync_include.yml'
     with_items: "{{ satellite_content_views | default([]) }}"
