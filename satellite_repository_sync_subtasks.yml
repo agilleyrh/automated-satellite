@@ -16,6 +16,10 @@
   #  loop_control:
   #    loop_var: content_view
 
+  - name: Execute redhat.satellite.content_credentials role
+    ansible.builtin.import_role:
+      name: "redhat.satellite.content_credentials"
+
   - name: Execute redhat.satellite.repositories role
     ansible.builtin.import_role:
       name: "redhat.satellite.repositories"
