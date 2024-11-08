@@ -118,6 +118,13 @@
   become: true
   gather_facts: false
   tasks:
+    - name: Install katello-ca-consumer package
+      ansible.builtin.yum:
+        name: "https://{{ hostvars['localhost']['capsule_hostname'] }}/pub/katello-ca-consumer-latest.noarch.rpm"
+        state: present
+        #validate_certs: no
+        #disable_gpg_check: true
+  
     - name: Run registration command
       ansible.builtin.shell: "{{ hostvars['localhost']['reg_cmd'] | regex_replace('AKtempSubToken',activation_key) }}"
       when: "'This system is not yet registered' in sub_man_status_pre['stderr']"
