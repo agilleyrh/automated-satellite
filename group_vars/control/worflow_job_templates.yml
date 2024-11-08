@@ -293,7 +293,7 @@ controller_workflows:
         success_nodes:
           - Register RHEL7 nodes to Satellite AK RHEL7_Dev
       - identifier: Register RHEL7 nodes to Satellite AK RHEL7_Dev
-        unified_job_template: SERVER / RHEL7 - Register
+        unified_job_template: SERVER / RHEL7 - Register via Satellite API
         organization: Default
         all_parents_must_converge: true
         extra_data:
@@ -302,7 +302,7 @@ controller_workflows:
         success_nodes:
           - Set instance tags based on Satellite facts
       - identifier: Register CentOS7 nodes to Satellite AK CentOS7_Dev
-        unified_job_template: SERVER / CentOS7 - Register
+        unified_job_template: SERVER / CentOS7 - Register via Satellite API
         organization: Default
         all_parents_must_converge: true
         extra_data:
