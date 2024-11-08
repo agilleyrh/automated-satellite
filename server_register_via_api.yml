@@ -51,6 +51,12 @@
         activation_key: "{{ 'OL' + ansible_distribution_major_version + '_' + env }}"
       when: ansible_distribution == 'OracleLinux'
 
+    - name: Ensure subscription-manager package is present for EL-rebuild distributions
+      ansible.builtin.yum:
+        name: subscription-manager
+        state: present
+      when: ansible_distribution != 'RedHat'
+
 - name: Generate Content Host registration command via Satellite API method
   hosts: localhost
   become: true
@@ -124,7 +130,7 @@
         state: present
         #validate_certs: no
         #disable_gpg_check: true
-  
+
     - name: Run registration command
       ansible.builtin.shell: "{{ hostvars['localhost']['reg_cmd'] | regex_replace('AKtempSubToken',activation_key) }}"
       when: "'This system is not yet registered' in sub_man_status_pre['stderr']"
