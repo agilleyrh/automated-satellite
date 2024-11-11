@@ -132,8 +132,12 @@
         #disable_gpg_check: true
 
     - name: Run registration command
-      ansible.builtin.shell: "{{ hostvars['localhost']['reg_cmd'] | regex_replace('AKtempSubToken',activation_key) }}"
+      ansible.builtin.shell: "{{ hostvars['localhost']['reg_cmd'] | regex_replace('AKtempSubToken', activation_key) }}"
       when: "'This system is not yet registered' in sub_man_status_pre['stderr']"
+      register: reg_cmd_output
+      until: '"duplicate key value violates unique constraint" not in reg_cmd_output.stderr'
+      retries: 3
+      delay: 20
 
     - name: Include delay before registration verfication
       ansible.builtin.command: |
