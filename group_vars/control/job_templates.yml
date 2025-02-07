@@ -633,6 +633,10 @@ controller_templates:
     extra_vars:
       org_id: "Default_Organization"
       convert_convert2rhel_opts: '--no-rpm-va'
+      convert_convert2rhel_env_vars:
+        CONVERT2RHEL_INCOMPLETE_ROLLBACK: 1
+        CONVERT2RHEL_OUTDATED_PACKAGE_CHECK_SKIP: 1
+        CONVERT2RHEL_ALLOW_OLDER_VERSION: 1
       convert_reboot_requested: true
     notification_templates_started: Telemetry
     notification_templates_success: Telemetry
