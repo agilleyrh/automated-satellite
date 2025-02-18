@@ -1,7 +1,8 @@
 ---
-- hosts: "{{ HOSTS is defined | ternary(HOSTS, PREFIX|default('')+'*') }}"
+- name: Register hosts to Satellite via rhsm_register role
+  hosts: "{{ HOSTS is defined | ternary(HOSTS, PREFIX|default('')+'*') }}"
   strategy: ansible.builtin.free
-  become: yes
+  become: true
   gather_facts: true
   vars:
     env: Dev
@@ -14,17 +15,18 @@
       block:
         - name: Set delay time via gather_facts
           ansible.builtin.set_fact:
-            node_delay_time: "{{ inventory_hostname | regex_replace('^\\D+|\\..*', '') | int *20 }}"
+            node_delay_time: "{{ inventory_hostname | regex_replace('^\\D+|\\..*', '') | int * 20 }}"
 
         - name: Include delay to offset system registrations
           ansible.builtin.command: |
             python3 -c 'import time;time.sleep({{ node_delay_time }})'
           delegate_to: localhost
           connection: local
-  
+
     - name: Register system
       ansible.builtin.include_role:
         name: rhsm_register
+
     - name: Enable all repositories
       when:
         - "ansible_distribution == 'CentOS'"
