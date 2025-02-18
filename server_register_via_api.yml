@@ -128,8 +128,8 @@
       ansible.builtin.yum:
         name: "https://{{ hostvars['localhost']['capsule_hostname'] }}/pub/katello-ca-consumer-latest.noarch.rpm"
         state: present
-        #validate_certs: no
-        #disable_gpg_check: true
+        # validate_certs: no
+        # disable_gpg_check: true
 
     - name: Run registration command
       ansible.builtin.shell: "{{ hostvars['localhost']['reg_cmd'] | regex_replace('AKtempSubToken', activation_key) }}"
@@ -160,7 +160,7 @@
 
     - name: Enable all repositories
       when:
-        #- "ansible_distribution == 'CentOS'"
+        # - "ansible_distribution == 'CentOS'"
         - "ansible_distribution_major_version | int  == 7"
       ansible.builtin.command: |
         yum-config-manager --enable \*
