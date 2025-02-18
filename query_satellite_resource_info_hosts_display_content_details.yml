@@ -1,0 +1,83 @@
+---
+- name: Query Satellite content hosts detail and provide content facet details
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    login: &login
+      server_url: "{{ lookup('env', 'SATELLITE_SERVER_URL') }}"
+      username: "{{ lookup('env', 'SATELLITE_USERNAME') }}"
+      password: "{{ lookup('env', 'SATELLITE_PASSWORD') }}"
+      validate_certs: "{{ lookup('env', 'SATELLITE_VALIDATE_CERTS') }}"
+
+  tasks:
+    - name: "Validate inventory_host_limit is a subset of inventory group {{ dynamic_inventory_group }}"
+      when: inventory_host_limit | length > 0
+      ansible.builtin.assert:
+        that:
+          - "inventory_host_limit | split(',') is subset(groups[dynamic_inventory_group])"
+        fail_msg: hosts_limit {{ inventory_host_limit | split(',') }} is not a subset of {{ dynamic_inventory_group }}.
+        success_msg: hosts_limit {{ inventory_host_limit | split(',') }} is a subset of {{ dynamic_inventory_group }}.
+
+    - name: Display ansible inventory group listing via dynamic_inventory_group variable
+      ansible.builtin.debug:
+        msg: "dynamic_inventory_group list: {{ groups[dynamic_inventory_group] }}"
+
+    - name: Set inventory host list
+      ansible.builtin.set_fact:
+        inventory_host_loop_list: "{{ inventory_host_limit | split(',') \
+                                  if inventory_host_limit is defined else [] }}"
+
+    - name: Set content host loop list
+      ansible.builtin.set_fact:
+        content_host_loop_list: "{{ inventory_host_limit | split(',') \
+                                if inventory_host_limit | length > 0 \
+                                else groups[dynamic_inventory_group] }}"
+
+    - name: Retrieve Satellite organizations details
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: organizations
+      register: organizations_resource_info_result
+
+    - name: Display organizations_resource_info_result
+      ansible.builtin.debug:
+        msg: "{{ organizations_resource_info_result }}"
+
+    - name: Retrieve Satellite content hosts details
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: hosts
+      register: hosts_resource_info_result
+
+    - name: Display hosts_resource_info_result
+      ansible.builtin.debug:
+        msg: "{{ hosts_resource_info_result }}"
+
+    - name: Retrieve Satellite activation keys details
+      redhat.satellite.resource_info:
+        <<: *login
+        resource: activation_keys
+        organization: "{{ organizations_resource_info_result.resources | selectattr('label', 'search', org_id) | map(attribute='name') | first \
+                      if org_id is defined \
+                      else org_name }}"
+      register: activation_keys_resource_info_result
+
+    - name: Display activation_keys_resource_info_result
+      ansible.builtin.debug:
+        msg: "{{ activation_keys_resource_info_result }}"
+
+    - name: List host name plus content details
+      ansible.builtin.debug:
+        msg:
+          - "node name: {{ item }}"
+          - "content view: {{ hosts_resource_info_result.resources | selectattr('name', 'search', item) \
+            | map(attribute='content_facet_attributes.content_view.name') | first }}"
+          - "lifecycle environment: {{ hosts_resource_info_result.resources | selectattr('name', 'search', item) \
+            | map(attribute='content_facet_attributes.lifecycle_environment.name') | first }}"
+          - "associated activation key: {{ activation_keys_resource_info_result.resources | selectattr('name', 'search', hosts_resource_info_result.resources \
+            | selectattr('name', 'search', item) | map(attribute='content_facet_attributes.lifecycle_environment.name') | first) | map(attribute='name') \
+            | first }}"
+      loop: "{{ content_host_loop_list }}"
+      when: item in hosts_resource_info_result.resources | selectattr('name', 'search', 'node*') | map(attribute='name')
+...
