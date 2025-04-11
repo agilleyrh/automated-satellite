@@ -6,6 +6,8 @@
   strategy: free
 
   tasks:
+    - name: Run insights-client
+      ansible.builtin.shell: insights-client --register
     - name: Install and register insights
       ansible.builtin.include_role:
         name: redhat.insights.insights_client
