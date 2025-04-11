@@ -23,32 +23,9 @@
       retries: 12
       delay: 15
 
-    - name: Get manifest list
-      uri:
-        url: "https://api.access.redhat.com/management/v1/allocations?type=Satellite"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ access_token_response.json.access_token }}"
-          Content-Type: "application/json"
-          accept: application/json
-        status_code: 200
-        return_content: yes
-        validate_certs: false
-        force_basic_auth: yes
-      register: manifests
-      until: "manifests.status == 200"
-      retries: 12
-      delay: 15
-
-    - name: Get manifest uuid
-      set_fact:
-        manifest_uuid: "{{ manifests | json_query(get_manifest_id) }}"
-      vars:
-        get_manifest_id: "json.body[?name == '{{ manifest_name }}'].uuid"
-
     - name: Download  manifest
       get_url:
-        url: "https://subscription.rhsm.redhat.com/subscription/consumers/{{ manifest_uuid[0] }}/export"
+        url: "https://subscription.rhsm.redhat.com/subscription/consumers/3eb8a470-7fc5-4255-a475-955b03f0a92d/export"
         dest: "{{ playbook_dir }}/manifest_insights.zip"
         validate_certs: false
         headers:
