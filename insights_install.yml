@@ -7,7 +7,7 @@
 
   tasks:
     - name: Unregister
-      ansible.builtin.shell: insights-clint --unregister
+      ansible.builtin.shell: insights-client --unregister
     - name: Register
       ansible.builtin.shell: insights-client --register
     - name: Install and register insights
