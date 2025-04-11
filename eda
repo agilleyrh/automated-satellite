@@ -1,0 +1,84 @@
+1.  **Insights Event Payload:** When Insights detects a finding you've configured notifications for, it sends an event (e.g., via webhook to EDA). This event message contains structured data, crucially including:
+    * **Finding Identifier:** A unique ID for the specific type of issue (e.g., an Insights Rule ID like `advisor_rules|SOME_RULE_ID`, a CVE number like `CVE-2023-9999`, etc.).
+    * **Affected Systems:** Which host(s) are impacted.
+    * **Severity:** Critical, Important, etc.
+    * Other relevant details.
+
+2.  **EDA Rulebook - Matching the Event:** The Rulebook you create in EDA has `rules`. Each rule has a `condition`. This condition checks the incoming event data.
+    ```yaml
+    # --- Example Rulebook Snippet ---
+    - name: Listen for Insights Critical Findings via Webhook
+      hosts: all
+      sources:
+        - name: Listen on port 5000
+          webhook:
+            host: 0.0.0.0
+            port: 5000
+      rules:
+        # Rule specific to ONE finding type (Less Scalable)
+        - name: Remediate Specific CVE-2023-9999
+          condition: event.payload.finding_id == "CVE-2023-9999" # Check specific field in payload
+          action:
+            run_job_template:
+              name: "Remediate CVE-2023-9999" # Specific JT for this CVE
+              organization: "Your Org"
+              job_args:
+                limit: "{{ event.payload.affected_host }}" # Pass affected host
+
+        # Rule for ANY critical finding (More Scalable - Preferred)
+        - name: Remediate ANY Critical Finding
+          condition: event.payload.severity == "Critical" # Match based on severity
+          action:
+            run_job_template:
+              name: "Generic Insights Remediator" # ONE generic Job Template
+              organization: "Your Org"
+              job_args:
+                limit: "{{ event.payload.affected_host }}" # Pass affected host
+                extra_vars:
+                  insights_finding_id: "{{ event.payload.finding_id }}" # Pass the finding ID
+                  # Pass any other useful data from the event
+                  # insights_description: "{{ event.payload.description }}"
+    # --- End Example ---
+    ```
+
+3.  **Mapping Strategy - How the Correct Action is Chosen:** There are primarily two ways EDA connects the *finding* to the *fix*:
+
+    * **Strategy A: Explicit Rule per Finding (Less Scalable)**
+        * You create a separate rule in your EDA Rulebook for *each specific finding ID* you want to auto-remediate (like the `Remediate Specific CVE-2023-9999` rule above).
+        * The `action` for that specific rule calls a dedicated Job Template in Automation Controller (`Remediate CVE-2023-9999`) which is pre-configured to run the exact playbook needed for that CVE.
+        * **How it knows the playbook:** The Job Template `Remediate CVE-2023-9999` in Automation Controller is explicitly configured to use the specific playbook (e.g., `playbooks/fix_cve_2023_9999.yml`) stored in your linked Git project.
+        * **Drawback:** You need potentially hundreds of EDA rules and corresponding Job Templates, which becomes hard to manage.
+
+    * **Strategy B: Generic Rule + Data-Driven Playbook (More Scalable - Recommended)**
+        * You create one (or a few) more generic rules in EDA (like the `Remediate ANY Critical Finding` rule above) that might match based on severity or other criteria.
+        * This rule triggers a *single, generic* Job Template in Automation Controller (e.g., `Generic Insights Remediator`).
+        * **Crucially:** The EDA rule passes the specific `finding_id` from the event payload as an `extra_var` to the Automation Controller Job Template.
+        * **How it knows the playbook/tasks:** The *playbook* associated with the `Generic Insights Remediator` Job Template is designed to be "smart". It receives the `insights_finding_id` variable and uses logic (like `when` conditions, `include_tasks`, lookups, or checking variable values) to determine which *specific set of tasks* within that playbook (or which role/included playbook file) needs to run to fix that particular finding.
+        ```yaml
+        # --- Example Generic Playbook Snippet (playbook run by Generic Insights Remediator JT) ---
+        - name: Generic Insights Remediation Playbook
+          hosts: all # Limit is applied by EDA job_args
+          gather_facts: no
+          vars:
+            # insights_finding_id is passed in as extra_vars from EDA
+            # Define mapping from finding ID to task file or role (example)
+            remediation_map:
+              "CVE-2023-9999": "tasks/fix_cve_2023_9999.yml"
+              "advisor_rules|SOME_RULE_ID": "tasks/fix_some_rule.yml"
+              # ... add more mappings
+          tasks:
+            - name: Debug received finding ID
+              ansible.builtin.debug:
+                msg: "Attempting remediation for finding: {{ insights_finding_id }} on {{ inventory_hostname }}"
+
+            - name: Include remediation tasks based on finding ID
+              ansible.builtin.include_tasks: "{{ remediation_map[insights_finding_id] }}"
+              when: insights_finding_id in remediation_map
+            
+            - name: Fail if no remediation is defined for this finding
+              ansible.builtin.fail:
+                 msg: "No defined remediation task found for finding ID: {{ insights_finding_id }}"
+              when: insights_finding_id not in remediation_map
+        # --- End Example ---
+        ```
+        * **Playbook Source:** The Job Template in Automation Controller points to your Git repository. You would develop and maintain these remediation tasks/playbooks (like `tasks/fix_cve_2023_9999.yml`) within that Git project. You might use the simple playbooks generated by Insights *as a starting point or reference* when creating your more robust, mapped tasks in Git.
